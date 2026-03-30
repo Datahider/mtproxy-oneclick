@@ -14,7 +14,12 @@
 ## 🚀 Установка
 
 ```bash
-sudo bash mtproxy-oneclick.sh
+curl -fsSL https://raw.githubusercontent.com/Datahider/mtproxy-oneclick/main/mtproxy-oneclick.sh
+sudo bash
+```
+или одной строкой:
+```bash
+curl -fsSL https://raw.githubusercontent.com/Datahider/mtproxy-oneclick/main/mtproxy-oneclick.sh | sudo bash
 ```
 
 ---

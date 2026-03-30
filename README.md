@@ -118,6 +118,8 @@ journalctl -u mtproxy -f
 
 ## 💻 Где можно арендовать VPS
 
+[beget.com](https://beget.com/p2574627)
+[ruvds.com](https://ruvds.com) - Промокод на скидку 5%: **BIO-UKX-OVW**
 
 ---
 

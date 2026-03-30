@@ -1,5 +1,5 @@
 # mtproxy-oneclick
-Простая установка MTProxy на арендованный VPS
+Простая установка MTProxy на VPS
 
 Устанавливает MTProxy + Nginx + sslh одной командой.
 
@@ -15,7 +15,7 @@
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Datahider/mtproxy-oneclick/main/mtproxy-oneclick.sh
-sudo bash
+sudo bash mtproxy-oneclick.sh
 ```
 или одной строкой:
 ```bash
@@ -110,17 +110,17 @@ journalctl -u mtproxy -f
 
 ## 🧱 Требования
 
-- Чистый сервер
+- Чистый сервер с Ubuntu 24.04 или Debian 12
 - root доступ
 - Интернет
 
+> Всё это уже входит в обычный VPS
 ---
 
 ## 💻 Где можно арендовать VPS
 
-[beget.com](https://beget.com/p2574627)
-
-[ruvds.com](https://ruvds.com) - Промокод на скидку 5%: **BIO-UKX-OVW**
+- [beget.com](https://beget.com/p2574627)
+- [ruvds.com](https://ruvds.com) - Промокод на скидку 5%: **BIO-UKX-OVW**
 
 ---
 

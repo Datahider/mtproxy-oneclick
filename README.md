@@ -159,6 +159,14 @@ journalctl -u mtproxy -f
 - [ruvds.com](https://ruvds.com) - Промокод на скидку 5%: **BIO-UKX-OVW**
 
 ---
+## 💰 Поддержка проекта
+
+Если скрипт оказался полезным — можно поддержать:
+
+- ☕ [100 ₽](https://auth.robokassa.ru/merchant/Invoice/OnK0igT0yUK1bVOzJPxwCg) — спасибо
+- 🍕 [300 ₽](https://auth.robokassa.ru/merchant/Invoice/Bvjo43ICnk6Nek72tc4H2Q) — поддержка проекта
+- 🚀 [500 ₽](https://auth.robokassa.ru/merchant/Invoice/LFXn9HEQpUiWxaQDlJL7lw) — сильно помогло
+
 
 ## 📄 Лицензия
 

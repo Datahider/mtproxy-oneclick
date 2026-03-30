@@ -1,5 +1,5 @@
 # mtproxy-oneclick
-Простая установка MTProxy на VPS
+## Простая установка MTProxy на VPS
 
 Устанавливает MTProxy + Nginx + sslh одной командой.
 

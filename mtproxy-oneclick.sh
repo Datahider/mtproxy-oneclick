@@ -56,30 +56,18 @@ echo "$SECRET" > /opt/MTProxy/secrets/static_secret
 echo "$ROTATING_SECRET" > /opt/MTProxy/secrets/rotating_secret
 chmod 600 /opt/MTProxy/secrets/static_secret /opt/MTProxy/secrets/rotating_secret
 
-cat > /opt/MTProxy/run-mtproxy.sh << 'EOF'
-#!/bin/bash
-set -e
-
-STATIC_SECRET=$(cat /opt/MTProxy/secrets/static_secret)
-ROTATING_SECRET=$(cat /opt/MTProxy/secrets/rotating_secret)
-
-exec /opt/MTProxy/objs/bin/mtproto-proxy \
-  -u nobody \
-  -p 8888 \
-  -H 9443 \
-  -S "$STATIC_SECRET" \
-  -S "$ROTATING_SECRET" \
-  --aes-pwd proxy-secret proxy-multi.conf \
-  -M 1 \
-  -P 1e7dba63f56799d5a756cf4bd739cdc0
+cat > /etc/default/mtproxy << EOF
+STATIC_SECRET=$SECRET
+ROTATING_SECRET=$ROTATING_SECRET
+MTPROXY_PORT=$MTPROXY_PORT
 EOF
 
-chmod +x /opt/MTProxy/run-mtproxy.sh
+chmod 600 /etc/default/mtproxy
 
 #######################################
 # MTProxy systemd
 #######################################
-cat > /etc/systemd/system/mtproxy.service << EOF
+cat > /etc/systemd/system/mtproxy.service << 'EOF'
 [Unit]
 Description=MTProxy
 After=network.target
@@ -87,7 +75,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/MTProxy/objs/bin
-ExecStart=/opt/MTProxy/run-mtproxy.sh
+EnvironmentFile=/etc/default/mtproxy
+ExecStart=/opt/MTProxy/objs/bin/mtproto-proxy -u nobody -p 8888 -H ${MTPROXY_PORT} -S ${STATIC_SECRET} -S ${ROTATING_SECRET} --aes-pwd proxy-secret proxy-multi.conf -M 1 -P 1e7dba63f56799d5a756cf4bd739cdc0
 Restart=always
 RestartSec=10
 
@@ -123,9 +112,13 @@ cat > /opt/MTProxy/rotate-secret.sh << EOF
 set -e
 
 NEW_ROTATING_SECRET=\$(head -c 16 /dev/urandom | xxd -ps)
-LINK_FILE="/var/www/landing/${ROTATING_PATH}"
+LINK_DIR="/var/www/landing/${ROTATING_PATH}"
+LINK_FILE="\${LINK_DIR}/index.html"
 
 echo "\${NEW_ROTATING_SECRET}" > /opt/MTProxy/secrets/rotating_secret
+sed -i -E "s/^ROTATING_SECRET=.*/ROTATING_SECRET=\${NEW_ROTATING_SECRET}/" /etc/default/mtproxy
+rm -f "\${LINK_DIR}"
+mkdir -p "\${LINK_DIR}"
 echo "https://t.me/proxy?server=${IP}&port=443&secret=\${NEW_ROTATING_SECRET}" > "\${LINK_FILE}"
 
 systemctl restart mtproxy
@@ -208,7 +201,8 @@ a {
 </html>
 EOF
 
-cat > /var/www/landing/${ROTATING_PATH} <<EOF
+mkdir -p /var/www/landing/${ROTATING_PATH}
+cat > /var/www/landing/${ROTATING_PATH}/index.html <<EOF
 https://t.me/proxy?server=${IP}&port=443&secret=${ROTATING_SECRET}
 EOF
 
@@ -301,8 +295,16 @@ echo ""
 echo "https://t.me/proxy?server=$IP&port=443&secret=$SECRET"
 echo ""
 echo "Ротируемая ссылка (endpoint):"
-echo "http://$IP/$ROTATING_PATH"
-echo "https://$IP/$ROTATING_PATH"
+echo "http://$IP/$ROTATING_PATH/"
+echo "https://$IP/$ROTATING_PATH/"
+echo ""
+echo "Self-signed сертификат (PEM) для проверки на клиентском сервере:"
+echo "-----BEGIN CERTIFICATE-----"
+sed -n '/BEGIN CERTIFICATE/,/END CERTIFICATE/p' /etc/nginx/ssl/self.crt | sed '1d;$d'
+echo "-----END CERTIFICATE-----"
+echo ""
+echo "SHA256 fingerprint:"
+openssl x509 -in /etc/nginx/ssl/self.crt -noout -fingerprint -sha256
 echo ""
 echo "HTTP:  http://$IP"
 echo "HTTPS: https://$IP"

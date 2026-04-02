@@ -48,11 +48,26 @@ curl -s https://core.telegram.org/getProxySecret -o proxy-secret
 curl -s https://core.telegram.org/getProxyConfig -o proxy-multi.conf
 
 SECRET=$(head -c 16 /dev/urandom | xxd -ps)
+ROTATING_SECRET=$(head -c 16 /dev/urandom | xxd -ps)
+ROTATING_PATH=$(tr -dc 'a-z0-9' </dev/urandom | head -c 32)
+
+mkdir -p /opt/MTProxy/secrets
+echo "$SECRET" > /opt/MTProxy/secrets/static_secret
+echo "$ROTATING_SECRET" > /opt/MTProxy/secrets/rotating_secret
+chmod 600 /opt/MTProxy/secrets/static_secret /opt/MTProxy/secrets/rotating_secret
+
+cat > /etc/default/mtproxy << EOF
+STATIC_SECRET=$SECRET
+ROTATING_SECRET=$ROTATING_SECRET
+MTPROXY_PORT=$MTPROXY_PORT
+EOF
+
+chmod 600 /etc/default/mtproxy
 
 #######################################
 # MTProxy systemd
 #######################################
-cat > /etc/systemd/system/mtproxy.service << EOF
+cat > /etc/systemd/system/mtproxy.service << 'EOF'
 [Unit]
 Description=MTProxy
 After=network.target
@@ -60,7 +75,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/MTProxy/objs/bin
-ExecStart=/opt/MTProxy/objs/bin/mtproto-proxy -u nobody -p 8888 -H ${MTPROXY_PORT} -S $SECRET --aes-pwd proxy-secret proxy-multi.conf -M 1 -P 1e7dba63f56799d5a756cf4bd739cdc0
+EnvironmentFile=/etc/default/mtproxy
+ExecStart=/opt/MTProxy/objs/bin/mtproto-proxy -u nobody -p 8888 -H ${MTPROXY_PORT} -S ${STATIC_SECRET} -S ${ROTATING_SECRET} --aes-pwd proxy-secret proxy-multi.conf -M 1 -P 1e7dba63f56799d5a756cf4bd739cdc0
 Restart=always
 RestartSec=10
 
@@ -87,6 +103,30 @@ EOF
 chmod +x /opt/MTProxy/update-config.sh
 
 (crontab -l 2>/dev/null | grep -v update-config.sh; echo "0 3 * * * /opt/MTProxy/update-config.sh") | crontab -
+
+#######################################
+# РОТАЦИЯ ВТОРОГО КЛЮЧА (КАЖДЫЕ 4 ЧАСА)
+#######################################
+cat > /opt/MTProxy/rotate-secret.sh << EOF
+#!/bin/bash
+set -e
+
+NEW_ROTATING_SECRET=\$(head -c 16 /dev/urandom | xxd -ps)
+LINK_DIR="/var/www/landing/${ROTATING_PATH}"
+LINK_FILE="\${LINK_DIR}/index.html"
+
+echo "\${NEW_ROTATING_SECRET}" > /opt/MTProxy/secrets/rotating_secret
+sed -i -E "s/^ROTATING_SECRET=.*/ROTATING_SECRET=\${NEW_ROTATING_SECRET}/" /etc/default/mtproxy
+rm -f "\${LINK_DIR}"
+mkdir -p "\${LINK_DIR}"
+echo "https://t.me/proxy?server=${IP}&port=443&secret=\${NEW_ROTATING_SECRET}" > "\${LINK_FILE}"
+
+systemctl restart mtproxy
+EOF
+
+chmod +x /opt/MTProxy/rotate-secret.sh
+
+(crontab -l 2>/dev/null | grep -v rotate-secret.sh; echo "0 */4 * * * /opt/MTProxy/rotate-secret.sh") | crontab -
 
 #######################################
 # SSL self-signed
@@ -159,6 +199,11 @@ a {
 </div>
 </body>
 </html>
+EOF
+
+mkdir -p /var/www/landing/${ROTATING_PATH}
+cat > /var/www/landing/${ROTATING_PATH}/index.html <<EOF
+https://t.me/proxy?server=${IP}&port=443&secret=${ROTATING_SECRET}
 EOF
 
 #######################################
@@ -249,20 +294,26 @@ echo "tg://proxy?server=$IP&port=443&secret=$SECRET"
 echo ""
 echo "https://t.me/proxy?server=$IP&port=443&secret=$SECRET"
 echo ""
+echo "Ротируемая ссылка (endpoint):"
+echo "http://$IP/$ROTATING_PATH/"
+echo "https://$IP/$ROTATING_PATH/"
+echo ""
 echo "HTTP:  http://$IP"
 echo "HTTPS: https://$IP"
 echo ""
 echo "Конфиг обновляется ежедневно в 3:00"
+echo "Ротируемый ключ обновляется каждые 4 часа"
 echo ""
 echo "Управление:"
 echo "  systemctl status mtproxy"
 echo "  systemctl restart mtproxy"
 echo "  systemctl stop mtproxy"
 echo "  systemctl start mtproxy"
+echo "  cat /etc/nginx/ssl/self.crt"
+echo "  openssl x509 -in /etc/nginx/ssl/self.crt -noout -fingerprint -sha256"
 echo ""
 echo "Логи:"
 echo "  journalctl -u mtproxy -f"
 echo ""
 echo "Ручное обновление:"
 echo "  /opt/MTProxy/update-config.sh"
-
